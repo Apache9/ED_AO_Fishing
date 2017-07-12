@@ -79,7 +79,7 @@ namespace Fishing
             INPUT[] keyDown = new INPUT[1] { createKeyDown(key) };
             INPUT[] keyUp = new INPUT[1] { createKeyUp(key) };
             SendInput(1, keyDown, Marshal.SizeOf(keyDown[0]));
-            Thread.Sleep(100);
+            Thread.Sleep(20);
             SendInput(1, keyUp, Marshal.SizeOf(keyUp[0]));
         }
     }

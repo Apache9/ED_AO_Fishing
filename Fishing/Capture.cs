@@ -6,60 +6,93 @@ using Microsoft.DirectX;
 using Microsoft.DirectX.Direct3D;
 using System.Windows.Forms;
 using System.Drawing;
+using System.Runtime.InteropServices;
 
 namespace Fishing
 {
-    class Capture
+    class Capture : IDisposable
     {
-        private PresentParameters presentParams;
-
-        public Capture()
+        [DllImport("gdi32.dll")]
+        static extern int GetDeviceCaps(IntPtr hdc, int nIndex);
+        public enum DeviceCap
         {
-            presentParams = new PresentParameters();
+            VERTRES = 10,
+            DESKTOPVERTRES = 117,
+
+            // http://pinvoke.net/default.aspx/gdi32/GetDeviceCaps.html
+        }
+
+        private float GetScalingFactor()
+        {
+            Graphics g = Graphics.FromHwnd(IntPtr.Zero);
+            IntPtr desktop = g.GetHdc();
+            int logicalScreenHeight = GetDeviceCaps(desktop, (int)DeviceCap.VERTRES);
+            int physicalScreenHeight = GetDeviceCaps(desktop, (int)DeviceCap.DESKTOPVERTRES);
+
+            float scalingFactor = (float)physicalScreenHeight / (float)logicalScreenHeight;
+
+            return scalingFactor; // 1.25 = 125%
+        }
+
+        private readonly float scalingFactor;
+
+        private readonly Rectangle cropRect;
+
+        private readonly Device device;
+
+        private readonly Surface surface;
+
+        public Capture(Rectangle rect)
+        {
+            scalingFactor = GetScalingFactor();
+            int screenWidth = (int)(Screen.PrimaryScreen.Bounds.Width * scalingFactor);
+            int screenHeight = (int)(Screen.PrimaryScreen.Bounds.Height * scalingFactor);
+            PresentParameters presentParams = new PresentParameters();
             presentParams.Windowed = true;
             presentParams.SwapEffect = SwapEffect.Discard;
             presentParams.PresentFlag = PresentFlag.LockableBackBuffer;
-            presentParams.BackBufferWidth = Screen.PrimaryScreen.Bounds.Width;
-            presentParams.BackBufferHeight = Screen.PrimaryScreen.Bounds.Height;
+            presentParams.BackBufferWidth = screenWidth;
+            presentParams.BackBufferHeight = screenHeight;
             presentParams.MultiSample = MultiSampleType.None;
+            device = new Device(0, DeviceType.Hardware, null, CreateFlags.SoftwareVertexProcessing, presentParams);
+            surface = device.CreateOffscreenPlainSurface(screenWidth, screenHeight, Format.A8R8G8B8, Pool.SystemMemory);
+            cropRect = new Rectangle((int)(rect.Left * scalingFactor), (int)(rect.Top * scalingFactor), (int)(rect.Width * scalingFactor), (int)(rect.Height * scalingFactor));
         }
 
-        private Bitmap captureScreen()
+        private Bitmap CaptureScreen(Rectangle rect)
         {
-            using (Device device = new Device(0, DeviceType.Hardware, null, CreateFlags.SoftwareVertexProcessing, presentParams))
+            device.GetFrontBufferData(0, surface);
+            GraphicsStream stream = Microsoft.DirectX.Direct3D.SurfaceLoader.SaveToStream(ImageFileFormat.Bmp, surface, rect);
+            try
             {
-                Surface surface = device.CreateOffscreenPlainSurface(Screen.PrimaryScreen.Bounds.Width, Screen.PrimaryScreen.Bounds.Height, Format.A8R8G8B8, Pool.SystemMemory);
-                try
-                {
-                    device.GetFrontBufferData(0, surface);
-                    GraphicsStream stream = Microsoft.DirectX.Direct3D.SurfaceLoader.SaveToStream(ImageFileFormat.Bmp, surface);
-                    try 
-                    {
-                        return new Bitmap(stream);
-                    }
-                    finally 
-                    {
-                        stream.Close();
-                        stream.Dispose();
-                    }
-                }
-                finally
-                {
-                    surface.ReleaseGraphics();
-                    surface.Dispose();
-                }
+                return new Bitmap(stream);
+            }
+            finally
+            {
+                stream.Close();
+                stream.Dispose();
             }
         }
 
-        public bool hasColorInRect(Color colorThreshold, Rectangle rect)
+        // for finding the right rect to capture
+        public Bitmap CaptureRect(Rectangle rect)
         {
-            using (Bitmap image = captureScreen())
+            Rectangle scalingRect = new Rectangle((int)(rect.Left * scalingFactor), (int)(rect.Top * scalingFactor), (int)(rect.Width * scalingFactor), (int)(rect.Height * scalingFactor));
+            using (Bitmap image = CaptureScreen(scalingRect))
             {
-                for (int x = 0; x < rect.Width; x++)
+                return new Bitmap(image);
+            }
+        }
+
+        public bool HasColorInRect(Color colorThreshold)
+        {
+            using (Bitmap image = CaptureScreen(cropRect))
+            {
+                for (int x = 0; x < image.Width; x++)
                 {
-                    for (int y = 0; y < rect.Height; y++)
+                    for (int y = 0; y < image.Height; y++)
                     {
-                        Color color = image.GetPixel(rect.Left + x, rect.Top + y);
+                        Color color = image.GetPixel(x, y);
                         if (color.R > colorThreshold.R && color.G > colorThreshold.G && color.B > colorThreshold.B)
                         {
                             return true;
@@ -68,6 +101,13 @@ namespace Fishing
                 }
             }
             return false;
+        }
+
+        public void Dispose()
+        {
+            surface.ReleaseGraphics();
+            surface.Dispose();
+            device.Dispose();
         }
     }
 }

@@ -36,13 +36,13 @@ namespace Fishing
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
         [DllImport("user32.dll")]
-        private static extern int GetWindowRect(IntPtr hwnd, out  Rect lpRect);
+        private static extern int GetWindowRect(IntPtr hwnd, out Rect lpRect);
 
         private volatile bool quit = false;
 
         private Thread fishingThread;
 
-        private Config config = new Config();
+        private readonly Config config = new Config();
 
         private KeyMapping keyMapping;
 
@@ -87,8 +87,7 @@ namespace Fishing
             }
             try
             {
-                string gameInstallDirectory = config.getGameInstallPath();
-                keyMapping = KeyMapping.load(gameInstallDirectory);
+                keyMapping = KeyMapping.load(config.GameInstallPath);
             }
             catch (Exception)
             {
@@ -139,7 +138,7 @@ namespace Fishing
             SetForegroundWindow(edaoWnd);
             Thread.Sleep(1000);
             quit = false;
-            fishingThread = new Thread(new ParameterizedThreadStart(this.fishing));
+            fishingThread = new Thread(new ParameterizedThreadStart(this.Fishing));
             fishingThread.Start(param);
         }
 
@@ -153,44 +152,56 @@ namespace Fishing
             }
         }
 
-        public void fishing(Object obj)
+        public void Fishing(Object obj)
         {
             FishingParams param = (FishingParams)obj;
-            int interval = config.getCaptureInterval();
-            int maxRound = config.getMaxWait() / interval;
+            int interval = config.CaptureInterval;
+            int maxRound = config.MaxWait / interval;
             richTextBox1.AppendText("钓鱼开始!\r\n");
             richTextBox1.ScrollToCaret();
-            Capture capture = new Capture();
-            for (int remaining = param.times; remaining > 0 && !quit; remaining--)
+            using (Capture capture = new Capture(param.rect))
             {
-                keyInput.pressKey(keyMapping.getButton2Key());
-                string text = "鱼跑掉了\r\n";
-                for (int round = 0; round < maxRound && !quit; round++)
+                /*using (Bitmap bitmap = capture.CaptureRect(param.rect))
                 {
-                    if (capture.hasColorInRect(COLOR_THRESHOLD, param.rect))
+                    bitmap.Save("D:\\capture.bmp");
+                }*/
+                for (int remaining = param.times;remaining > 0 && !quit ; remaining--)
+                {
+                    keyInput.pressKey(keyMapping.getButton2Key());
+                    string text = "鱼跑掉了\r\n";
+                    for (int round = 0; round < maxRound && !quit; round++)
                     {
-                        keyInput.pressKey(keyMapping.getButton2Key());
-                        text = "HITS\r\n";
-                        break;
+                        try {
+                        if (capture.HasColorInRect(COLOR_THRESHOLD))
+                        {
+                            keyInput.pressKey(keyMapping.getButton2Key());
+                            text = "HITS\r\n";
+                            break;
+                        }
+                        } catch (Exception e)
+                        {
+                            MessageBox.Show(round + ": " + e.ToString());
+                            goto EndFishing;
+                        }
+                        Thread.Sleep(interval);
                     }
-                    Thread.Sleep(interval);
+                    richTextBox1.AppendText(remaining + ". " + text);
+                    richTextBox1.ScrollToCaret();
+                    Thread.Sleep(5000);
+                    keyInput.pressKey(keyMapping.getButton2Key());
+                    Thread.Sleep(2000);
+                    keyInput.pressKey(keyMapping.getButton2Key());
+                    Thread.Sleep(500);
                 }
-                richTextBox1.AppendText(remaining + ". " + text);
-                richTextBox1.ScrollToCaret();
-                Thread.Sleep(5000);
-                keyInput.pressKey(keyMapping.getButton2Key());
-                Thread.Sleep(2000);
-                keyInput.pressKey(keyMapping.getButton2Key());
-                Thread.Sleep(500);
             }
-
+            EndFishing:
             richTextBox1.AppendText("钓鱼结束!\r\n");
             richTextBox1.ScrollToCaret();
         }
 
         private IntPtr initWindowHandle()
         {
-            Process[] ps = Process.GetProcessesByName("ED_AO");
+            Process[] ps = Process.GetProcessesByName(config.ProcessName);
             if (ps.Length == 0)
             {
                 return IntPtr.Zero;

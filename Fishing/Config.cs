@@ -33,20 +33,16 @@ namespace Fishing
 
         public const String CONFIG_MAX_WAIT = "MaxWait";
 
-        public string getGameInstallPath()
-        {
-            return getProperty(CONFIG_GAME_INSTALL_PATH);
-        }
+        public const String CONFIG_PROCESS_NAME = "ProcName";
 
-        public int getCaptureInterval()
-        {
-            return Convert.ToInt32(getProperty(CONFIG_CAPTURE_INTERVAL));
-        }
+        public string GameInstallPath { get => getProperty(CONFIG_GAME_INSTALL_PATH);  }
 
-        public int getMaxWait()
-        {
-            return Convert.ToInt32(getProperty(CONFIG_MAX_WAIT));
-        }
+        public int CaptureInterval { get => Convert.ToInt32(getProperty(CONFIG_CAPTURE_INTERVAL)); }
+
+        public int MaxWait { get => Convert.ToInt32(getProperty(CONFIG_MAX_WAIT)); }
+
+        public string ProcessName { get => getProperty(CONFIG_PROCESS_NAME); }
+
         public string getProperty(string configName)
         {
             return conf[configName];
