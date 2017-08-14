@@ -75,10 +75,9 @@ namespace Fishing
         }
 
         // for finding the right rect to capture
-        public Bitmap CaptureRect(Rectangle rect)
+        public Bitmap Crop()
         {
-            Rectangle scalingRect = new Rectangle((int)(rect.Left * scalingFactor), (int)(rect.Top * scalingFactor), (int)(rect.Width * scalingFactor), (int)(rect.Height * scalingFactor));
-            using (Bitmap image = CaptureScreen(scalingRect))
+            using (Bitmap image = CaptureScreen(cropRect))
             {
                 return new Bitmap(image);
             }
@@ -86,6 +85,12 @@ namespace Fishing
 
         public bool HasColorInRect(Color colorThreshold)
         {
+            int rLow = colorThreshold.R;
+            int rHigh = colorThreshold.R + 30;
+            int gLow = colorThreshold.G;
+            int gHigh = colorThreshold.G + 30;
+            int bLow = colorThreshold.B;
+            int bHigh = colorThreshold.B + 30;
             using (Bitmap image = CaptureScreen(cropRect))
             {
                 for (int x = 0; x < image.Width; x++)
@@ -93,7 +98,7 @@ namespace Fishing
                     for (int y = 0; y < image.Height; y++)
                     {
                         Color color = image.GetPixel(x, y);
-                        if (color.R > colorThreshold.R && color.G > colorThreshold.G && color.B > colorThreshold.B)
+                        if (color.R > rLow && color.R < rHigh && color.G > gLow && color.G < gHigh && color.B > bLow && color.B < bHigh)
                         {
                             return true;
                         }

@@ -58,9 +58,12 @@ namespace Fishing
 
         private const int BUTTON2_INDEX = 0;
 
-        public Microsoft.DirectX.DirectInput.Key getButton2Key()
-        {
-            return controlKeys[BUTTON2_INDEX];
-        }
+        private const int BUTTION_UP_INDEX = 11;
+
+        private const int BUTTION_DOWN_INDEX = 13;
+
+        public Microsoft.DirectX.DirectInput.Key Button2 { get => controlKeys[BUTTON2_INDEX]; }
+        public Microsoft.DirectX.DirectInput.Key ButtonUp { get => controlKeys[BUTTION_UP_INDEX]; }
+        public Microsoft.DirectX.DirectInput.Key ButtonDown { get => controlKeys[BUTTION_DOWN_INDEX]; }
     }
 }
